@@ -1,0 +1,16 @@
+export const categories=[{id:'study',name:'Học tập',description:'Sách, giáo trình, vở, dụng cụ học tập...',icon:'BookOpen',color:'blue'},{id:'fashion',name:'Thời trang',description:'Đồng phục, quần áo, giày dép, balo...',icon:'Shirt',color:'pink'},{id:'electronics',name:'Điện tử',description:'Máy tính, điện thoại, tai nghe, phụ kiện...',icon:'Laptop',color:'purple'},{id:'home',name:'Đồ phòng trọ',description:'Bàn ghế, quạt, nồi, đồ gia dụng...',icon:'House',color:'green'},{id:'gift',name:'Cho tặng',description:'Đồ dùng miễn phí cho cộng đồng',icon:'Gift',color:'yellow'},{id:'exchange',name:'Trao đổi',description:'Giao lưu hàng hóa ngang giá',icon:'ArrowLeftRight',color:'cyan'}];
+export type Product={id:string;owner_id:string;title:string;category:string;mode:string;price:number;condition:string;description:string;location:string;images:string[];status:string;created_at:string;sample:number;owner_name?:string;verified?:number;rating?:number;review_count?:number;saved?:boolean};
+export type Profile={id:string;name:string;email?:string;school:string;student_id?:string;bio:string;avatar:string;verified:number;role:string;blocked?:number;verification_status?:string;rating?:number;review_count?:number;transaction_count?:number};
+export const sampleProducts:Product[]=[
+['sample-laptop','Laptop Asus i5','electronics','sale',4500000,'Còn tốt','Laptop Asus i5 phục vụ học tập, kèm sạc.','product-laptop.png'],
+['sample-notebooks','Sổ tay Kawaii (5 quyển)','study','sale',120000,'Mới','Bộ 5 sổ tay họa tiết Kawaii, chưa sử dụng.','product-notebooks.png'],
+['sample-uniform','Đồng phục HUIT (XL)','fashion','exchange',0,'Còn tốt','Đồng phục HUIT size XL. Cần đổi size M.','product-uniform.png'],
+['sample-cooker','Nồi cơm điện','home','sale',350000,'Còn tốt','Nồi cơm điện phù hợp phòng trọ, hoạt động tốt.','product-rice-cooker.png'],
+['sample-backpack','Ba lô thời trang','fashion','gift',0,'Còn tốt','Ba lô còn tốt, cho tặng bạn sinh viên cần dùng.','product-backpack.png'],
+['sample-calculator','Máy tính Casio','study','sale',150000,'Còn tốt','Máy tính cầm tay dùng cho học tập.','nearby-calculator.png'],
+['sample-hoodie','Áo hoodie','fashion','sale',120000,'Còn tốt','Áo hoodie màu sáng, còn tốt.','nearby-hoodie.png'],
+['sample-fan','Quạt mini','home','sale',70000,'Còn tốt','Quạt để bàn nhỏ gọn cho phòng trọ.','nearby-fan.png'],
+['sample-textbook','Giáo trình kinh tế','study','sale',80000,'Đã qua sử dụng','Giáo trình kinh tế dành cho sinh viên.','nearby-textbook.png']
+].map((p,i)=>({id:p[0] as string,owner_id:'sample',title:p[1] as string,category:p[2] as string,mode:p[3] as string,price:p[4] as number,condition:p[5] as string,description:p[6] as string,images:['/images/'+p[7]],location:'HUIT, Tân Phú',status:'active',created_at:new Date(Date.UTC(2026,9,5,7-i)).toISOString(),sample:1,owner_name:'CampusLoop · Tin mẫu',verified:0}));
+export const money=(p:Pick<Product,'mode'|'price'>)=>p.mode==='gift'?'Miễn phí':p.mode==='exchange'?'Trao đổi':new Intl.NumberFormat('vi-VN').format(p.price)+' đ';
+export const modeLabel=(mode:string)=>({sale:'Bán',exchange:'Trao đổi',gift:'Tặng'}[mode]||mode);

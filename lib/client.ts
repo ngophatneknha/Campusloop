@@ -1,0 +1,4 @@
+export async function api(path:string,method='GET',data?:any){const response=await fetch('/api/'+path,{method,headers:data instanceof FormData?undefined:{'Content-Type':'application/json'},body:data===undefined?undefined:data instanceof FormData?data:JSON.stringify(data),credentials:'same-origin'});const result:any=await response.json();if(!response.ok)throw new Error(result.error||'Không thể xử lý. Vui lòng thử lại.');return result}
+export async function upload(file:File,kind='listing'){const form=new FormData();form.set('file',file);form.set('kind',kind);return (await api('upload','POST',form)).url as string}
+export const date=(value:string)=>new Date(value).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+export const normalize=(value:string)=>value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');

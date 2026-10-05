@@ -1,0 +1,1 @@
+import CampusApp from '../CampusApp';export default function CampusRoute(){return <CampusApp/>}
