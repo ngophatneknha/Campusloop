@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { createHash, randomBytes } from 'node:crypto';
-import { database, one, run } from './store';
+import { batch, one, run } from './store';
 import { ApiError } from './errors';
 import { hashPassword, verifyPassword } from './password';
 
@@ -17,7 +17,7 @@ export async function getSessionUser() {
   const requestHeaders = await headers();
   const token = sessionToken(requestHeaders.get('cookie') || '', requestHeaders.get('host') || '');
   if (!token) return null;
-  const user = await one(`SELECT a.id userId, a.email, a.role, p.name fullName FROM auth_sessions s
+  const user = await one(`SELECT a.id "userId", a.email, a.role, p.name "fullName" FROM auth_sessions s
     JOIN auth_users a ON a.id=s.user_id JOIN profiles p ON p.id=a.id
     WHERE s.token_hash=? AND s.expires_at>?`, tokenHash(token), new Date().toISOString());
   return user || null;
@@ -40,7 +40,7 @@ async function throttle(scope: string, subject: string, maximum: number, seconds
   const start = Math.floor(Date.now() / (seconds * 1000)) * seconds * 1000;
   const key = tokenHash(scope + ':' + subject + ':' + start);
   const record = await one(`INSERT INTO auth_rate_limits (key,count,expires_at) VALUES (?,1,?)
-    ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count`, key, new Date(start + seconds * 1000).toISOString());
+    ON CONFLICT(key) DO UPDATE SET count=auth_rate_limits.count+1 RETURNING count`, key, new Date(start + seconds * 1000).toISOString());
   if (record.count > maximum) throw new ApiError(429, 'Bạn thử quá nhiều lần. Vui lòng thử lại sau.');
   await run('DELETE FROM auth_rate_limits WHERE expires_at<=?', new Date().toISOString());
 }
@@ -79,7 +79,7 @@ export async function handleAuth(req: Request, action: string) {
   if (Number(req.headers.get('content-length') || 0) > 4096) throw new ApiError(413, 'Yêu cầu quá lớn.');
   const body: any = await readBody(req);
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ApiError(400, 'Yêu cầu không hợp lệ.');
-  const ip = req.headers.get('cf-connecting-ip') || 'unknown';
+  const ip = req.headers.get('x-nf-client-connection-ip') || req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
   const respond = (setCookie: string, status = 200) => Response.json({ok:true}, {status, headers:{'Set-Cookie':setCookie, 'Cache-Control':'no-store'}});
   if (action === 'logout') {
     const token = sessionToken(req.headers.get('cookie') || '', new URL(req.url).host);
@@ -97,9 +97,9 @@ export async function handleAuth(req: Request, action: string) {
       if (await one('SELECT id FROM auth_users WHERE email=?', email)) throw new ApiError(409, 'Email đã được đăng ký.');
       const id = crypto.randomUUID(), now = new Date().toISOString();
       const passwordHash = await hashPassword(password);
-      try { await database().batch([
-        database().prepare('INSERT INTO auth_users (id,email,password_hash,created_at) VALUES (?,?,?,?)').bind(id,email,passwordHash,now),
-        database().prepare('INSERT INTO profiles (id,email,name,created_at) VALUES (?,?,?,?)').bind(id,email,name,now),
+      try { await batch([
+        ['INSERT INTO auth_users (id,email,password_hash,created_at) VALUES (?,?,?,?)',id,email,passwordHash,now],
+        ['INSERT INTO profiles (id,email,name,created_at) VALUES (?,?,?,?)',id,email,name,now],
       ]); } catch(error) {
         if (await one('SELECT id FROM auth_users WHERE email=?',email)) throw new ApiError(409, 'Email đã được đăng ký.');
         throw error;
@@ -123,10 +123,10 @@ export async function handleAuth(req: Request, action: string) {
     const password = passwordValue(body.password,true);
     if (!await verifyPassword(currentPassword,account.password_hash)) throw new ApiError(401, 'Mật khẩu hiện tại không đúng.');
     const passwordHash = await hashPassword(password);
-    const changed = await database().batch([
-      database().prepare(`UPDATE auth_users SET password_hash=? WHERE id=? AND password_hash=?
-        AND EXISTS (SELECT 1 FROM profiles WHERE id=? AND blocked=0)`).bind(passwordHash,user.userId,account.password_hash,user.userId),
-      database().prepare('DELETE FROM auth_sessions WHERE user_id=? AND changes()=1').bind(user.userId),
+    const changed = await batch([
+      [`UPDATE auth_users SET password_hash=? WHERE id=? AND password_hash=?
+        AND EXISTS (SELECT 1 FROM profiles WHERE id=? AND blocked=0)`,passwordHash,user.userId,account.password_hash,user.userId],
+      results => results[0].meta.changes === 1 ? ['DELETE FROM auth_sessions WHERE user_id=?',user.userId] : null,
     ]);
     if (!changed[0].meta.changes) throw new ApiError(409, 'Tài khoản đã thay đổi. Vui lòng đăng nhập lại.');
     return respond(await startSession(req,user.userId,passwordHash));
